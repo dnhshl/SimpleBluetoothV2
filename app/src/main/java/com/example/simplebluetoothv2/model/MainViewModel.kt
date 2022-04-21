@@ -8,12 +8,14 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.simplebluetoothv2.bluetooth.*
-import com.example.simplebluetoothv2.bluetooth.Esp32Bt.jsonParseEsp32Data
+import com.example.simplebluetoothv2.bluetooth.Esp32Bt.readBtMessage
 import com.example.simplebluetoothv2.bluetooth.Esp32Bt.resetSocket
+import com.example.simplebluetoothv2.bluetooth.Esp32Bt.sendBtMessage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import java.io.IOException
 
 class MainViewModel : ViewModel() {
@@ -27,7 +29,15 @@ class MainViewModel : ViewModel() {
         _selectedDevice.value = device
     }
 
+    fun getMAC(): String {
+        if (_selectedDevice.value!!.isEmpty()) return ""
+        val device = _selectedDevice.value
+        return device!!.substring(device.length-17)
+    }
+
+
     enum class ConnectionState {NOT_CONNECTED, CONNECTING, CONNECTED}
+
     private var _isConnected = MutableLiveData<ConnectionState>(ConnectionState.NOT_CONNECTED)
     val isConnected : LiveData<ConnectionState>
         get() = _isConnected
@@ -43,11 +53,6 @@ class MainViewModel : ViewModel() {
     private lateinit var dataLoadJob: Job
 
 
-    fun getMAC(): String {
-        if (_selectedDevice.value!!.isEmpty()) return ""
-        val device = _selectedDevice.value
-        return device!!.substring(device.length-17)
-    }
 
     @SuppressLint("MissingPermission")
     fun connectEsp32() {
@@ -68,11 +73,11 @@ class MainViewModel : ViewModel() {
         viewModelScope.launch { socket?.let { resetSocket(it) } }
     }
 
-    fun checkConnect(timeInterval: Long) {
+    fun checkConnect(timeOut: Long) {
         if (socket != null) {
             viewModelScope.launch {
                 val startTime = System.currentTimeMillis()
-                val endTime = startTime + timeInterval
+                val endTime = startTime + timeOut
                 while (!(_isConnected.value!! == ConnectionState.CONNECTED) && System.currentTimeMillis()<endTime) {
                     delay(10)
                     if (socket?.let {it.isConnected} ?: false)
@@ -87,7 +92,10 @@ class MainViewModel : ViewModel() {
          viewModelScope.launch {
              socket?.let {
                  try {
-                     Esp32Bt.sendBtMessage(it, Esp32Bt.jsonEncodeLedData(ledData))
+                     // wrap JSON Encoded Data with ! and ?
+                     val msg = "!${jsonEncodeLedData(ledData)}?"
+                     // send this string
+                     sendBtMessage(it, msg)
                  } catch (e: Exception) {
                      Log.i(TAG, "Error sending ledData ${e.message}")
                  }
@@ -101,7 +109,7 @@ class MainViewModel : ViewModel() {
             dataLoadJob = viewModelScope.launch {
                 while (isActive){
                     try {
-                        val jsonStrings = Esp32Bt.readBtMessage(it).split("!")
+                        val jsonStrings = readBtMessage(it).split("!")
                         jsonStrings.forEach { jsonstring ->
                             // Endet der String mit ?
                             if (jsonstring.endsWith("?"))
@@ -120,5 +128,25 @@ class MainViewModel : ViewModel() {
 
     fun cancelDataLoadJob() {
         dataLoadJob.cancel()
+    }
+
+    fun jsonEncodeLedData(ledData: LedData): String {
+        val obj = JSONObject()
+        obj.put("LED", ledData.led)
+        obj.put("LEDBlinken", ledData.ledBlinken)
+        return obj.toString()
+    }
+
+    fun jsonParseEsp32Data(jsonString: String): Esp32Data {
+        try {
+            val obj = JSONObject(jsonString)
+            return Esp32Data(
+                ledstatus = obj.getString("ledstatus"),
+                potiArray = obj.getJSONArray("potiArray")
+            )
+        } catch (e: Exception) {
+            Log.i(com.example.simplebluetoothv2.bluetooth.TAG, "Error decoding JSON ${e.message}")
+            return Esp32Data()
+        }
     }
 }

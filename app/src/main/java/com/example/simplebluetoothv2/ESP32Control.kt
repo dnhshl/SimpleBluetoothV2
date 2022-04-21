@@ -41,14 +41,8 @@ class ESP32Control : Fragment() {
 
         viewModel.selectedDevice.observe(viewLifecycleOwner) { device ->
             when (device) {
-                "" -> {
-                    binding.tvSelectedDevice.text = getString(R.string.no_selected_device)
-                    binding.btnConnect.visibility = View.INVISIBLE
-                }
-                else -> {
-                    binding.tvSelectedDevice.text = getString(R.string.selected_device).format(device)
-                    binding.btnConnect.visibility = View.VISIBLE
-                }
+                "" -> binding.tvSelectedDevice.text = getString(R.string.no_selected_device)
+                else -> binding.tvSelectedDevice.text = getString(R.string.selected_device).format(device)
             }
             writeSharedPreferences(device)
         }

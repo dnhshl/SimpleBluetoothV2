@@ -60,8 +60,9 @@ class ManageDevice : Fragment() {
 
 
         binding.listview.setOnItemClickListener { _, _, i, _ ->
-            // i ist der Index des geklickten Eintrags
+            // Merke selected Device im ViewModel
             viewModel.setSelectedDevice(binding.listview.getItemAtPosition(i).toString())
+            // Navigiere zurück zum ESP32ControlFragment
             findNavController().navigate(R.id.action_manageDevice_to_ESP32Control)
         }
     }
@@ -74,7 +75,6 @@ class ManageDevice : Fragment() {
             bluetoothAdapter.cancelDiscovery()
             requireActivity().unregisterReceiver(broadcastReceiver);
         }
-
     }
 
     @SuppressLint("MissingPermission")

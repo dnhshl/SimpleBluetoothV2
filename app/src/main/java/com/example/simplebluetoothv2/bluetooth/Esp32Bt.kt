@@ -4,14 +4,10 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothSocket
 import android.util.Log
-import org.json.JSONArray
-import org.json.JSONObject
 import java.io.IOException
 import java.util.*
-import kotlin.collections.ArrayList
 
 val TAG = "Esp32Bt"
-
 
 object Esp32Bt {
     @SuppressLint("MissingPermission")
@@ -36,21 +32,12 @@ object Esp32Bt {
 
     suspend fun sendBtMessage(socket: BluetoothSocket, msg: String) {
         try {
-            val data = "!${msg}?"
-            socket.outputStream.write(data.toByteArray())
-            Log.i(TAG, "Sending ${data}")
+            socket.outputStream.write(msg.toByteArray())
+            Log.i(TAG, "Sending ${msg}")
         } catch (e: IOException) {
             Log.i(TAG, "Error writing buffer ${e.message}")
         }
     }
-
-    fun jsonEncodeLedData(ledData: LedData): String {
-        val obj = JSONObject()
-        obj.put("LED", ledData.led)
-        obj.put("LEDBlinken", ledData.ledBlinken)
-        return obj.toString()
-    }
-
 
     suspend fun readBtMessage(socket: BluetoothSocket): String {
         try {
@@ -60,22 +47,6 @@ object Esp32Bt {
         } catch (e: IOException) {
             Log.i(TAG, "Error reading buffer ${e.message}")
             return ""
-        }
-    }
-
-
-
-    fun jsonParseEsp32Data(jsonString: String): Esp32Data {
-        try {
-            val obj = JSONObject(jsonString)
-            return Esp32Data(
-                ledstatus = obj.getString("ledstatus"),
-                potiArray = obj.getJSONArray("potiArray")
-            )
-
-        } catch (e: Exception) {
-            Log.i(TAG, "Error decoding JSON ${e.message}")
-            return Esp32Data()
         }
     }
 }
