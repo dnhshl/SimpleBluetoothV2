@@ -1,5 +1,6 @@
 package com.example.simplebluetoothv2
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.Intent
@@ -15,6 +16,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.navigation.ui.onNavDestinationSelected
 import com.example.simplebluetoothv2.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
@@ -38,27 +40,23 @@ class MainActivity : AppCompatActivity() {
         appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
 
-
-
-
     }
 
+    @SuppressLint("MissingPermission")
+    override fun onResume() {
+        super.onResume()
+        val bluetooth = BluetoothAdapter.getDefaultAdapter()
 
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        menuInflater.inflate(R.menu.menu_main, menu)
-        return true
-    }
-
-
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        return when (item.itemId) {
-            R.id.action_settings -> true
-            else -> super.onOptionsItemSelected(item)
+        // ist BT auf dem Device verfügbar?
+        if(bluetooth == null)
+        {
+            Toast.makeText(this, getString(R.string.bt_not_available),Toast.LENGTH_LONG).show()
+            finish();
+        }
+        // ist BT eingeschaltet?
+        if (!bluetooth.isEnabled) {
+            val turnBTOn = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+            startActivityForResult(turnBTOn, 1)
         }
     }
 

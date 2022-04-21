@@ -8,32 +8,50 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.simplebluetoothv2.bluetooth.*
+import com.example.simplebluetoothv2.bluetooth.Esp32Bt.jsonParseEsp32Data
 import com.example.simplebluetoothv2.bluetooth.Esp32Bt.resetSocket
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.IOException
 
 class MainViewModel : ViewModel() {
     val TAG = "MainViewModel"
-    var selectedDevice = ""
-    var socket: BluetoothSocket? = null
-    private var _isConnected = MutableLiveData<Boolean>()
-    val isConnected : LiveData<Boolean>
+
+    private var _selectedDevice = MutableLiveData<String>("")
+    val selectedDevice: LiveData<String>
+        get() = _selectedDevice
+
+    fun setSelectedDevice(device:String = "") {
+        _selectedDevice.value = device
+    }
+
+    enum class ConnectionState {NOT_CONNECTED, CONNECTING, CONNECTED}
+    private var _isConnected = MutableLiveData<ConnectionState>(ConnectionState.NOT_CONNECTED)
+    val isConnected : LiveData<ConnectionState>
         get() = _isConnected
 
-    init {
-        _isConnected.value = false
-    }
+    private var _esp32Data = MutableLiveData<Esp32Data>(Esp32Data())
+    val esp32Data: LiveData<Esp32Data>
+        get() = _esp32Data
+
 
     var ledData = LedData()
 
+    private var socket: BluetoothSocket? = null
+    private lateinit var dataLoadJob: Job
+
+
     fun getMAC(): String {
-        if (selectedDevice.isEmpty()) return ""
-        return selectedDevice.substring(selectedDevice.length-17)
+        if (_selectedDevice.value!!.isEmpty()) return ""
+        val device = _selectedDevice.value
+        return device!!.substring(device.length-17)
     }
 
     @SuppressLint("MissingPermission")
     fun connectEsp32() {
+        _isConnected.value = ConnectionState.CONNECTING
         viewModelScope.launch {
             socket?.let { resetSocket(it) }
             try {
@@ -44,15 +62,22 @@ class MainViewModel : ViewModel() {
             }
         }
     }
-    
+
+    fun disconnectEsp32() {
+        _isConnected.value = ConnectionState.NOT_CONNECTED
+        viewModelScope.launch { socket?.let { resetSocket(it) } }
+    }
+
     fun checkConnect(timeInterval: Long) {
         if (socket != null) {
             viewModelScope.launch {
                 val startTime = System.currentTimeMillis()
                 val endTime = startTime + timeInterval
-                while (!(_isConnected.value!!) && System.currentTimeMillis()<endTime) {
+                while (!(_isConnected.value!! == ConnectionState.CONNECTED) && System.currentTimeMillis()<endTime) {
                     delay(10)
-                    _isConnected.value = socket?.let {it.isConnected} ?: false
+                    if (socket?.let {it.isConnected} ?: false)
+                        _isConnected.value = ConnectionState.CONNECTED
+                    Log.i(TAG, "connecting")
                 }
             }
         }
@@ -71,15 +96,29 @@ class MainViewModel : ViewModel() {
     }
 
 
-    fun getEsp32Data() {
-        viewModelScope.launch {
-            socket?.let {
-                try {
-                    Esp32Bt.readBtMessage(it)
-                } catch (e: Exception) {
-                    Log.i(TAG, "Error sending ledData ${e.message}")
+    fun startDataLoadJob() {
+        socket?.let {
+            dataLoadJob = viewModelScope.launch {
+                while (isActive){
+                    try {
+                        val jsonStrings = Esp32Bt.readBtMessage(it).split("!")
+                        jsonStrings.forEach { jsonstring ->
+                            // Endet der String mit ?
+                            if (jsonstring.endsWith("?"))
+                                // dann entferne das Fragezeichen und Werte den JSON String aus
+                                _esp32Data.value = jsonParseEsp32Data(jsonstring.dropLast(1))
+                        }
+                        Log.i(TAG, "ESP32Data ${esp32Data}")
+                    } catch (e: Exception) {
+                        Log.i(TAG, "Error sending ledData ${e.message}")
+                    }
+                    delay(250)
                 }
             }
         }
+    }
+
+    fun cancelDataLoadJob() {
+        dataLoadJob.cancel()
     }
 }

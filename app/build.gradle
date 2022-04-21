@@ -46,4 +46,6 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.4.1'
+    // lib for changing button styles
+    implementation 'com.airbnb.android:paris:2.0.0'
 }

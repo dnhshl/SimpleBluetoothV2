@@ -3,26 +3,23 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_graph"
-    app:startDestination="@id/FirstFragment">
-
+    app:startDestination="@id/ESP32Control">
     <fragment
-        android:id="@+id/FirstFragment"
-        android:name="com.example.simplebluetoothv2.FirstFragment"
-        android:label="@string/first_fragment_label"
-        tools:layout="@layout/fragment_first">
-
+        android:id="@+id/ESP32Control"
+        android:name="com.example.simplebluetoothv2.ESP32Control"
+        android:label="@string/esp32_control"
+        tools:layout="@layout/fragment_esp32control" >
         <action
-            android:id="@+id/action_FirstFragment_to_SecondFragment"
-            app:destination="@id/SecondFragment" />
+            android:id="@+id/action_ESP32Control_to_manageDevice"
+            app:destination="@id/manageDevice" />
     </fragment>
     <fragment
-        android:id="@+id/SecondFragment"
-        android:name="com.example.simplebluetoothv2.SecondFragment"
-        android:label="@string/second_fragment_label"
-        tools:layout="@layout/fragment_second">
-
+        android:id="@+id/manageDevice"
+        android:name="com.example.simplebluetoothv2.ManageDevice"
+        android:label="@string/manage_device"
+        tools:layout="@layout/fragment_manage_device" >
         <action
-            android:id="@+id/action_SecondFragment_to_FirstFragment"
-            app:destination="@id/FirstFragment" />
+            android:id="@+id/action_manageDevice_to_ESP32Control"
+            app:destination="@id/ESP32Control" />
     </fragment>
 </navigation>

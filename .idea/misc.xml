@@ -4,8 +4,11 @@
     <option name="filePathToZoomLevelMap">
       <map>
         <entry key="..\:/Users/noll/sciebo/MCAppsV2/SimpleBluetoothV2/app/src/main/res/layout/activity_main.xml" value="0.11684782608695653" />
+        <entry key="..\:/Users/noll/sciebo/MCAppsV2/SimpleBluetoothV2/app/src/main/res/layout/fragment_esp32control.xml" value="0.36666666666666664" />
         <entry key="..\:/Users/noll/sciebo/MCAppsV2/SimpleBluetoothV2/app/src/main/res/layout/fragment_first.xml" value="0.536" />
+        <entry key="..\:/Users/noll/sciebo/MCAppsV2/SimpleBluetoothV2/app/src/main/res/layout/fragment_manage_device.xml" value="0.6" />
         <entry key="..\:/Users/noll/sciebo/MCAppsV2/SimpleBluetoothV2/app/src/main/res/layout/fragment_second.xml" value="0.20729166666666668" />
+        <entry key="..\:/Users/noll/sciebo/MCAppsV2/SimpleBluetoothV2/app/src/main/res/menu/menu_main.xml" value="0.20729166666666668" />
       </map>
     </option>
   </component>

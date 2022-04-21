@@ -22,49 +22,47 @@ import androidx.core.content.PermissionChecker.PERMISSION_GRANTED
 import androidx.core.content.PermissionChecker.checkSelfPermission
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
-import com.example.simplebluetoothv2.databinding.FragmentFirstBinding
+import com.example.simplebluetoothv2.databinding.FragmentManageDeviceBinding
 import com.example.simplebluetoothv2.model.MainViewModel
 
-class FirstFragment : Fragment() {
+class ManageDevice : Fragment() {
 
-    private val TAG = "FirstFragment"
+    private val TAG = "ManageDevice"
 
-    private var _binding: FragmentFirstBinding? = null
+    private var _binding: FragmentManageDeviceBinding? = null
     private val binding get() = _binding!!
 
 
     private val viewModel: MainViewModel by activityViewModels()
 
     private val bluetoothAdapter: BluetoothAdapter by lazy { BluetoothAdapter.getDefaultAdapter() }
-    private var discoveredDevices = arrayListOf<String>()
+    private val discoveredDevices = arrayListOf<String>()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        _binding = FragmentFirstBinding.inflate(inflater, container, false)
+        _binding = FragmentManageDeviceBinding.inflate(inflater, container, false)
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-
         binding.btnBondedDevices.setOnClickListener {
-            checkBTPermission()
             getPairedDevices()
         }
 
         binding.btnSearchDevices.setOnClickListener {
             checkBTPermission()
-            getDiscoverDevices()
+            discoverDevices()
         }
+
 
         binding.listview.setOnItemClickListener { _, _, i, _ ->
             // i ist der Index des geklickten Eintrags
-            viewModel.selectedDevice = binding.listview.getItemAtPosition(i).toString()
-            viewModel.connectEsp32()
-            findNavController().navigate(R.id.action_FirstFragment_to_SecondFragment)
+            viewModel.setSelectedDevice(binding.listview.getItemAtPosition(i).toString())
+            findNavController().navigate(R.id.action_manageDevice_to_ESP32Control)
         }
     }
 
@@ -79,6 +77,7 @@ class FirstFragment : Fragment() {
 
     }
 
+    @SuppressLint("MissingPermission")
     private fun getPairedDevices() {
 
         val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter.bondedDevices
@@ -93,7 +92,7 @@ class FirstFragment : Fragment() {
 
         val adapter = ArrayAdapter(requireContext(),
             android.R.layout.simple_list_item_1,   // Layout zur Darstellung der ListItems
-            list)                                  // Liste, die Dargestellt werden soll
+            list)                                  // Liste, die dargestellt werden soll
 
         binding.listview.adapter = adapter
     }
@@ -111,25 +110,31 @@ class FirstFragment : Fragment() {
     }
 
     @SuppressLint("MissingPermission")
-    private fun getDiscoverDevices() {
+    private fun discoverDevices() {
         when (bluetoothAdapter.isDiscovering) {
             false -> {
                 // Suche einschalten
                 bluetoothAdapter.startDiscovery()
+                // Button Text anpassen
                 binding.btnSearchDevices.text = getString(R.string.stop_search_devices)
+                // Intent Filter für BroadcastReceiver
                 val discoverDevicesIntent = IntentFilter(BluetoothDevice.ACTION_FOUND) //auf diese Signale soll unser Broadcast Receiver filtern
+                // BroadcastReceiver starten
                 requireActivity().registerReceiver(broadcastReceiver, discoverDevicesIntent)
             }
             true -> {
                 // Suche ausschalten
                 bluetoothAdapter.cancelDiscovery()
+                // Button Text anpassen
                 binding.btnSearchDevices.text = getString(R.string.start_search_devices)
+                // Broadcast Receiver ausschalten
                 requireActivity().unregisterReceiver(broadcastReceiver);
             }
         }
     }
 
     private val broadcastReceiver: BroadcastReceiver = object : BroadcastReceiver() {
+        @SuppressLint("MissingPermission")
         override fun onReceive(context: Context?, intent: Intent) {
             val action = intent.action
             if (action == BluetoothDevice.ACTION_FOUND) {
