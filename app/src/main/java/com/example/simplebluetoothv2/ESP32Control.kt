@@ -9,11 +9,8 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
-import com.airbnb.paris.extensions.style
 import com.example.simplebluetoothv2.databinding.FragmentEsp32controlBinding
 import com.example.simplebluetoothv2.model.MainViewModel
-import kotlinx.coroutines.Job
-import java.nio.channels.spi.AbstractSelectableChannel
 
 
 class ESP32Control : Fragment() {
@@ -68,12 +65,12 @@ class ESP32Control : Fragment() {
         }
 
         binding.btnConnect.setOnClickListener {
-            viewModel.connectEsp32()
-            viewModel.checkConnect(1000L)
+            viewModel.checkConnectionState(2000L)
+            viewModel.connect()
         }
 
         binding.btnDisconnect.setOnClickListener {
-            viewModel.disconnectEsp32()
+            viewModel.disconnect()
         }
 
         binding.switchLed.setOnCheckedChangeListener { _, isChecked ->
@@ -108,7 +105,7 @@ class ESP32Control : Fragment() {
             val sp = getPreferences(Context.MODE_PRIVATE)
             val edit = sp.edit()
             edit.putString("device", selectedDevice)
-            edit.commit()
+            edit.apply()
         }
     }
 

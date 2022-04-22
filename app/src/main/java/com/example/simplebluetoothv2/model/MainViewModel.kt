@@ -1,22 +1,22 @@
 package com.example.simplebluetoothv2.model
 
-import android.annotation.SuppressLint
-import android.bluetooth.BluetoothSocket
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.simplebluetoothv2.bluetooth.*
+import com.example.simplebluetoothv2.bluetooth.Esp32Bt.checkConnect
+import com.example.simplebluetoothv2.bluetooth.Esp32Bt.connectEsp32
+import com.example.simplebluetoothv2.bluetooth.Esp32Bt.disconnectEsp32
 import com.example.simplebluetoothv2.bluetooth.Esp32Bt.readBtMessage
-import com.example.simplebluetoothv2.bluetooth.Esp32Bt.resetSocket
 import com.example.simplebluetoothv2.bluetooth.Esp32Bt.sendBtMessage
+
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.json.JSONObject
-import java.io.IOException
 
 class MainViewModel : ViewModel() {
     val TAG = "MainViewModel"
@@ -49,79 +49,63 @@ class MainViewModel : ViewModel() {
 
     var ledData = LedData()
 
-    private var socket: BluetoothSocket? = null
+
     private lateinit var dataLoadJob: Job
 
-
-
-    @SuppressLint("MissingPermission")
-    fun connectEsp32() {
-        _isConnected.value = ConnectionState.CONNECTING
-        viewModelScope.launch {
-            socket?.let { resetSocket(it) }
-            try {
-                socket = Esp32Bt.getSocket(getMAC())
-                socket?.connect()
-            } catch (e: IOException) {
-                Log.i(TAG, "Error Connection ${e.message}")
-            }
-        }
+    fun connect() {
+        val MAC = getMAC()
+        if (!MAC.isEmpty()) viewModelScope.launch { connectEsp32(MAC) }
     }
 
-    fun disconnectEsp32() {
-        _isConnected.value = ConnectionState.NOT_CONNECTED
-        viewModelScope.launch { socket?.let { resetSocket(it) } }
-    }
-
-    fun checkConnect(timeOut: Long) {
-        if (socket != null) {
-            viewModelScope.launch {
-                val startTime = System.currentTimeMillis()
-                val endTime = startTime + timeOut
-                while (!(_isConnected.value!! == ConnectionState.CONNECTED) && System.currentTimeMillis()<endTime) {
-                    delay(10)
-                    if (socket?.let {it.isConnected} ?: false)
-                        _isConnected.value = ConnectionState.CONNECTED
-                    Log.i(TAG, "connecting")
-                }
-            }
-        }
+    fun disconnect() {
+        viewModelScope.launch { disconnectEsp32() }
     }
 
     fun sendLedData() {
          viewModelScope.launch {
-             socket?.let {
-                 try {
-                     // wrap JSON Encoded Data with ! and ?
-                     val msg = "!${jsonEncodeLedData(ledData)}?"
-                     // send this string
-                     sendBtMessage(it, msg)
-                 } catch (e: Exception) {
-                     Log.i(TAG, "Error sending ledData ${e.message}")
-                 }
+             try {
+                 // wrap JSON Encoded Data with ! and ?
+                 val msg = "!${jsonEncodeLedData(ledData)}?"
+                 // send this string
+                 sendBtMessage(msg)
+             } catch (e: Exception) {
+                 Log.i(TAG, "Error sending ledData ${e.message}")
              }
          }
     }
 
+    // Prüfe alle 100 ms, ob sich der Status geändert hat
+    // Prüfe, bis der Status auf CONNECTED ist
+    // längstens aber bis zum timeOut
+    fun checkConnectionState(timeOut: Long) {
+        viewModelScope.launch {
+            val startTime = System.currentTimeMillis()
+            val endTime = startTime + timeOut
+            while (_isConnected.value != ConnectionState.CONNECTED
+                     && System.currentTimeMillis()<endTime) {
+                _isConnected.value = checkConnect()
+                Log.i(TAG, "checking Connection ${_isConnected.value}")
+                delay(100)
+            }
+        }
+    }
+
 
     fun startDataLoadJob() {
-        socket?.let {
-            dataLoadJob = viewModelScope.launch {
-                while (isActive){
-                    try {
-                        val jsonStrings = readBtMessage(it).split("!")
-                        jsonStrings.forEach { jsonstring ->
-                            // Endet der String mit ?
-                            if (jsonstring.endsWith("?"))
-                                // dann entferne das Fragezeichen und Werte den JSON String aus
-                                _esp32Data.value = jsonParseEsp32Data(jsonstring.dropLast(1))
-                        }
-                        Log.i(TAG, "ESP32Data ${esp32Data}")
-                    } catch (e: Exception) {
-                        Log.i(TAG, "Error sending ledData ${e.message}")
+        dataLoadJob = viewModelScope.launch {
+            while (isActive){
+                try {
+                    val jsonStrings = readBtMessage().split("!")
+                    jsonStrings.forEach { jsonstring ->
+                        // Endet der String mit ?
+                        if (jsonstring.endsWith("?"))
+                            // dann entferne das Fragezeichen und Werte den JSON String aus
+                            _esp32Data.value = jsonParseEsp32Data(jsonstring.dropLast(1))
                     }
-                    delay(250)
+                } catch (e: Exception) {
+                    Log.i(TAG, "Error sending ledData ${e.message}")
                 }
+                delay(250)
             }
         }
     }
@@ -145,7 +129,7 @@ class MainViewModel : ViewModel() {
                 potiArray = obj.getJSONArray("potiArray")
             )
         } catch (e: Exception) {
-            Log.i(com.example.simplebluetoothv2.bluetooth.TAG, "Error decoding JSON ${e.message}")
+            Log.i(TAG, "Error decoding JSON ${e.message}")
             return Esp32Data()
         }
     }
